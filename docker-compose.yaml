@@ -1,0 +1,42 @@
+version: '3'
+services:
+  influxdb:
+    image: influxdb:1.5-alpine
+    container_name: influxdb
+    environment:
+      - INFLUXDB_DB=grafana
+    ports:
+    - "8086:8086"
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+    - "80:3000"
+    depends_on:
+      - influxdb
+      - prometheus
+    links:
+      - influxdb
+      - prometheus
+    volumes:
+    - "./config/grafana/grafana.ini:/etc/grafana/grafana.ini"
+    - "./config/grafana/datasources.yml:/etc/grafana/provisioning/datasources/prometheus.yml"
+  prometheus:
+    image: prom/prometheus:v2.17.1
+    container_name: prometheus
+    links:
+      - influxdb
+    ports:
+    - "9090:9090"
+    volumes:
+    - "./config/prometheus.yml:/etc/prometheus/prometheus.yml"
+  cadvisor-exporter:
+    container_name: "cadvisor-exporter"
+    image: google/cadvisor
+    ports:
+      - "9200:8080"
+    volumes:
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:rw"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
