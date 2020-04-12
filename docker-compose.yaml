@@ -4,23 +4,40 @@ services:
     image: influxdb:1.5-alpine
     container_name: influxdb
     environment:
-      - INFLUXDB_DB=grafana
+      - INFLUXDB_DB=cloudd
     ports:
     - "8086:8086"
+
+  timescale_db:
+    image: timescale/timescaledb:latest-pg11
+    container_name: timescale_db
+    environment:
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_USER=root
+      - POSTGRES_DB=cloudd
+      - TS_TUNE_MEMORY=2GB
+      - TS_TUNE_NUM_CPUS=1
+      - TIMESCALEDB_TELEMETRY=off
+    ports:
+    - "5432:5432"
+
   grafana:
     image: grafana/grafana
     container_name: grafana
     ports:
-    - "80:3000"
+    - "3000:3000"
     depends_on:
       - influxdb
       - prometheus
+      - timescale_db
     links:
       - influxdb
       - prometheus
+      - timescale_db
     volumes:
     - "./config/grafana/grafana.ini:/etc/grafana/grafana.ini"
     - "./config/grafana/datasources.yml:/etc/grafana/provisioning/datasources/prometheus.yml"
+
   prometheus:
     image: prom/prometheus:v2.17.1
     container_name: prometheus
@@ -30,6 +47,7 @@ services:
     - "9090:9090"
     volumes:
     - "./config/prometheus.yml:/etc/prometheus/prometheus.yml"
+
   cadvisor-exporter:
     container_name: "cadvisor-exporter"
     image: google/cadvisor

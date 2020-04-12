@@ -1,13 +1,25 @@
 package ru.cloudd.benchmark
 
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
+import ru.cloudd.benchmark.generator.MetricSetGen
+import ru.cloudd.benchmark.influx.InfluxDB
+import ru.cloudd.benchmark.timescaledb.TimescaleDB
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 object Main extends App {
-  val metricNames1 = (10 to 30).map("metric_" + _)
-  val metricNames2 = (1 to 30 by 2).map("metric_" + _)
-  val metricNames3 = (1 to 50 by 3).map("metric_" + _)
-  val farmIds = (1 to 200).map(_ => UUID.randomUUID()).zipWithIndex
-  val cycleIds = (1 to 1000).map(_ => UUID.randomUUID())
+
+  import ru.cloudd.benchmark.generator.Metrics._
+
+  val logger = Logger(LoggerFactory.getLogger("Main"))
+  logger.info("Starting app...")
+
+  val farmIds = (1 to 50).map(_ => UUID.randomUUID()).zipWithIndex
   val farms = farmIds.map {
     case (uuid, id) =>
       val metrics = id % 3 match {
@@ -15,13 +27,40 @@ object Main extends App {
         case 1 => metricNames2
         case 2 => metricNames3
       }
-      val gens = Seq(new MetricSetGen(metrics, uuid, cycleIds))
-      Farm(id, gens)
+      Farm(id, new MetricSetGen(metrics, uuid))
   }
-  val gen = farms.head.metricSetGens.head
-  for (
-    i <- 1 to 1000000
-  ) println(gen.next)
+
+  val pointsPerFarm = 1_500_000 // Примерно 3 года
+
+  val timescale = new TimescaleDB
+  val influx = new InfluxDB
+
+  val tasks = farms.map(farm => {
+    Future {
+      logger.info(s"Generating for farm ${farm.id}...")
+      for (i <- 1 to pointsPerFarm) {
+        val point = farm.gen.next
+        timescale.persist(point)
+        influx.persist(point)
+      }
+      logger.info(s"Done generating for farm ${farm.id}")
+    }(ExecutionContext.global)
+  })
+
+  implicit val ec = ExecutionContext.global
+
+  val globalResult = Future.traverse(farms)(farm => {
+    Future {
+      logger.info(s"Generating for farm ${farm.id}...")
+      for (i <- 1 to pointsPerFarm) {
+        val point = farm.gen.next
+        timescale.persist(point)
+        influx.persist(point)
+      }
+      logger.info(s"Done generating for farm ${farm.id}")
+    }
+  })
+  Await.result(globalResult, Duration(10, TimeUnit.MINUTES))
 }
 
-case class Farm(id: Long, metricSetGens: Seq[MetricSetGen])
+case class Farm(id: Long, gen: MetricSetGen)

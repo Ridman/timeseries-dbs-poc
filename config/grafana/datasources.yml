@@ -30,6 +30,8 @@ datasources:
     orgId: 1
     # <string> url
     url: http://influxdb:8086
+    # <string> database name, if used
+    database: cloudd
     version: 1
     # <bool> allow users to edit datasources from the UI.
     editable: true
