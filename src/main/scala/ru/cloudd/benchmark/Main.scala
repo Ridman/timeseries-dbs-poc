@@ -1,7 +1,7 @@
 package ru.cloudd.benchmark
 
 import java.util.UUID
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{Executors, TimeUnit}
 
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -19,7 +19,7 @@ object Main extends App {
   val logger = Logger(LoggerFactory.getLogger("Main"))
   logger.info("Starting app...")
 
-  val farmIds = (1 to 50).map(_ => UUID.randomUUID()).zipWithIndex
+  val farmIds = (1 to 3).map(_ => UUID.randomUUID()).zipWithIndex
   val farms = farmIds.map {
     case (uuid, id) =>
       val metrics = id % 3 match {
@@ -30,22 +30,11 @@ object Main extends App {
       Farm(id, new MetricSetGen(metrics, uuid))
   }
 
-  val pointsPerFarm = 1_500_000 // Примерно 3 года
+//  val pointsPerFarm = 1_500_000 // Примерно 3 года
+  val pointsPerFarm = 500_000 // Примерно 1 год
 
   val timescale = new TimescaleDB
   val influx = new InfluxDB
-
-  val tasks = farms.map(farm => {
-    Future {
-      logger.info(s"Generating for farm ${farm.id}...")
-      for (i <- 1 to pointsPerFarm) {
-        val point = farm.gen.next
-        timescale.persist(point)
-        influx.persist(point)
-      }
-      logger.info(s"Done generating for farm ${farm.id}")
-    }(ExecutionContext.global)
-  })
 
   implicit val ec = ExecutionContext.global
 
@@ -55,7 +44,7 @@ object Main extends App {
       for (i <- 1 to pointsPerFarm) {
         val point = farm.gen.next
         timescale.persist(point)
-        influx.persist(point)
+//        influx.persist(point)
       }
       logger.info(s"Done generating for farm ${farm.id}")
     }

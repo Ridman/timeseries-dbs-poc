@@ -24,7 +24,7 @@ class InfluxDB extends DBClient with InfluxSupport {
     val result = this.synchronized {
       buffer += record
       if (buffer.size >= InfluxDB.bufferThreshold) {
-        val request = buffer.mkString(",")
+        val request = buffer.mkString("\n")
         buffer.clear()
         Future {
           writeToInflux(request)
@@ -46,12 +46,12 @@ class InfluxDB extends DBClient with InfluxSupport {
       .map {
         case (metric, value) => s"$metric=$value"
       }
-      .mkString("\n")
+      .mkString(",")
     s"state,$tags $values ${metrics.timestamp}"
   }
 }
 
 object InfluxDB {
-  val bufferThreshold = 100000
-  val queryTimeout: FiniteDuration = Duration(2, TimeUnit.SECONDS)
+  val bufferThreshold = 100_00
+  val queryTimeout: FiniteDuration = Duration(1, TimeUnit.MINUTES)
 }

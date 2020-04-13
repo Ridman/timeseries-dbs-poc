@@ -7,6 +7,8 @@ services:
       - INFLUXDB_DB=cloudd
     ports:
     - "8086:8086"
+    logging:
+      driver: none
 
   timescale_db:
     image: timescale/timescaledb:latest-pg11
@@ -20,6 +22,8 @@ services:
       - TIMESCALEDB_TELEMETRY=off
     ports:
     - "5432:5432"
+    logging:
+      driver: none
 
   grafana:
     image: grafana/grafana
@@ -34,6 +38,8 @@ services:
       - influxdb
       - prometheus
       - timescale_db
+    logging:
+      driver: none
     volumes:
     - "./config/grafana/grafana.ini:/etc/grafana/grafana.ini"
     - "./config/grafana/datasources.yml:/etc/grafana/provisioning/datasources/prometheus.yml"
@@ -45,6 +51,8 @@ services:
       - influxdb
     ports:
     - "9090:9090"
+    logging:
+      driver: none
     volumes:
     - "./config/prometheus.yml:/etc/prometheus/prometheus.yml"
 

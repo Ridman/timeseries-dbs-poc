@@ -6,6 +6,8 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import org.flywaydb.core.Flyway
 
+import scala.util.{Failure, Try}
+
 trait TimescaleSupport {
 
   protected lazy val logger: Logger = Logger(classOf[TimescaleSupport])
@@ -29,13 +31,20 @@ trait TimescaleSupport {
   }
 
   protected def writeToTimescaleDb(sql: String) = {
-    logger.info("Inserting into TimescaleDB...")
-    val connection = DriverManager.getConnection(connectionUrl, username, password)
-    val statement = connection.createStatement()
-    statement.execute(sql)
-    statement.close()
-    connection.close()
-    logger.info("Inserted")
+    Try {
+      logger.info("Inserting into TimescaleDB...")
+      val connection = DriverManager.getConnection(connectionUrl, username, password)
+      val statement = connection.createStatement()
+      statement.execute(sql)
+      statement.close()
+      connection.close()
+      logger.info("Inserted")
+    } match {
+      case Failure(ex) =>
+        logger.error("Cannot execute sql: '{}'", sql, ex)
+        throw ex
+      case _ =>
+    }
   }
 
 }

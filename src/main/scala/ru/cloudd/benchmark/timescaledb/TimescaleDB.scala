@@ -20,7 +20,7 @@ class TimescaleDB extends DBClient with TimescaleSupport {
     val metricValues = Metrics.allMetricNames.map(metrics.vals.getOrElse(_, "null")).mkString(",")
     val farmId = metrics.tags("farm_id")
     val timestamp = sqlTimestamp(metrics.timestamp)
-    val record = s"VALUES($timestamp,'$farmId',$metricValues)"
+    val record = s"('$timestamp','$farmId',$metricValues)"
     val result = this.synchronized {
       buffer += record
       if (buffer.size >= TimescaleDB.bufferThreshold) {
@@ -45,7 +45,7 @@ object TimescaleDB {
   private[this] val table = "metrics"
   private[this] val queryColumns = "time,farm_id," + Metrics.allMetricNames.mkString(",")
 
-  private val queryPrefix = s"INSERT INTO $table ($queryColumns) "
-  private val bufferThreshold = 100000
-  private val queryTimeout: FiniteDuration = Duration(2, TimeUnit.SECONDS)
+  private val queryPrefix = s"INSERT INTO $table ($queryColumns) VALUES "
+  private val bufferThreshold = 5000
+  private val queryTimeout: FiniteDuration = Duration(10, TimeUnit.SECONDS)
 }
